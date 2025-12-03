@@ -330,13 +330,53 @@ function generatePrizeCode(): string {
 }
 
 /**
- * Create a new game session
+ * Pre-generate random results for a game session
+ * Each result is an object with tree and leaf boolean values
+ * 45% chance for user to win (one of them will be true based on user's choice)
+ */
+function generatePreDeterminedResults(totalAttempts: number): Array<{ tree: boolean; leaf: boolean }> {
+  const results: Array<{ tree: boolean; leaf: boolean }> = [];
+  
+  for (let i = 0; i < totalAttempts; i++) {
+    const random = Math.random();
+    const userWins = random < 0.45; // 45% win rate
+    
+    if (userWins) {
+      // Randomly choose which option wins (50/50 between tree and leaf)
+      const treeWins = Math.random() < 0.5;
+      results.push({
+        tree: treeWins,
+        leaf: !treeWins,
+      });
+    } else {
+      // User loses - both are false (neither wins)
+      results.push({
+        tree: false,
+        leaf: false,
+      });
+    }
+  }
+  
+  return results;
+}
+
+/**
+ * Create a new game session with pre-generated results
  */
 export async function createGameSession(session: InsertGameSession) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  const result: any = await db.insert(gameSessions).values(session);
+  // Generate pre-determined results for this session
+  const preGeneratedResults = generatePreDeterminedResults(session.totalAttempts || 1);
+  
+  // Store results as JSON string
+  const sessionWithResults = {
+    ...session,
+    preGeneratedResults: JSON.stringify(preGeneratedResults),
+  };
+  
+  const result: any = await db.insert(gameSessions).values(sessionWithResults);
   return Number(result.insertId);
 }
 
@@ -380,7 +420,7 @@ export async function updateGameSession(id: number, updates: Partial<InsertGameS
 }
 
 /**
- * Play a game round
+ * Play a game round using pre-generated results
  * Returns true if user won, false if lost
  */
 export async function playGameRound(sessionId: number, userId: number, productId: number, choice: 'tree' | 'leaf'): Promise<{ isWin: boolean; result: 'tree' | 'leaf' }> {
@@ -393,10 +433,35 @@ export async function playGameRound(sessionId: number, userId: number, productId
   if (session.status !== 'active') throw new Error("Game session is not active");
   if (session.attemptsUsed >= session.totalAttempts) throw new Error("No attempts remaining");
   
-  // Generate result with 45% win rate for user
-  const random = Math.random();
-  const isWin = random < 0.45;
-  const result: 'tree' | 'leaf' = isWin ? choice : (choice === 'tree' ? 'leaf' : 'tree');
+  // Parse pre-generated results
+  const preGeneratedResults: Array<{ tree: boolean; leaf: boolean }> = session.preGeneratedResults 
+    ? JSON.parse(session.preGeneratedResults) 
+    : [];
+  
+  if (preGeneratedResults.length === 0 || session.attemptsUsed >= preGeneratedResults.length) {
+    throw new Error("No pre-generated results available");
+  }
+  
+  // Get the pre-determined result for this attempt
+  const currentResult = preGeneratedResults[session.attemptsUsed];
+  
+  // Check if user's choice matches the pre-generated winning option
+  const isWin = currentResult[choice];
+  
+  // Determine what result to show
+  let result: 'tree' | 'leaf';
+  if (isWin) {
+    result = choice; // User chose correctly
+  } else {
+    // User chose wrong - show the opposite or show that neither won
+    if (currentResult.tree || currentResult.leaf) {
+      // One of them was winning, show the other
+      result = choice === 'tree' ? 'leaf' : 'tree';
+    } else {
+      // Neither was winning (both false), randomly show one
+      result = choice === 'tree' ? 'leaf' : 'tree';
+    }
+  }
   
   // Save game result
   await db.insert(gameResults).values({

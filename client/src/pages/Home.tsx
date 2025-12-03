@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Store, TrendingUp, ArrowRight } from "lucide-react";
+import { ShoppingBag, Store, TrendingUp, ArrowRight, Gamepad2, Trophy, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export default function Home() {
@@ -91,6 +92,76 @@ export default function Home() {
                 <p className="text-sm">Hero Image Placeholder</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Game Showcase Section */}
+      <section className="py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-y-4 border-green-500">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-6">
+              <Gamepad2 className="h-10 w-10 text-white" />
+            </div>
+            <h2 className="text-5xl font-bold text-gray-900 mb-4">
+              🎮 משחק עץ או פלי
+            </h2>
+            <p className="text-xl text-gray-700 max-w-2xl mx-auto mb-2">
+              שחק במשחק המרגש שלנו וזכה במוצרים במחיר מדהים!
+            </p>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              משלם רק 10% מהמחיר, מנצח 5 פעמים - והמוצר שלך! 🎁
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 mb-12">
+            <div className="bg-white p-6 rounded-lg shadow-lg border-2 border-green-200">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                  <Sparkles className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">משלם מעט</h3>
+                <p className="text-gray-600">
+                  רק 10% מהמחיר המלא! חולצה ב-100₪? שחק ב-10₪ בלבד
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-lg border-2 border-green-200">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mb-4">
+                  <Gamepad2 className="h-8 w-8 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">בחר עץ או פלי</h3>
+                <p className="text-gray-600">
+                  משחק פשוט ומהנה! בחר נכון 5 פעמים וזכה
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-lg border-2 border-green-200">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+                  <Trophy className="h-8 w-8 text-yellow-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">זכה במוצר!</h3>
+                <p className="text-gray-600">
+                  5 זכיות = קוד לאיסוף המוצר. פשוט וכיף!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link href="/products">
+              <Button size="lg" className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-12 py-6">
+                <Gamepad2 className="mr-2 h-6 w-6" />
+                בחר מוצר והתחל לשחק!
+              </Button>
+            </Link>
+            <p className="text-sm text-gray-500 mt-4">
+              💡 כל מוצר באתר זמין למשחק - בחר מה שאתה רוצה!
+            </p>
           </div>
         </div>
       </section>

@@ -143,6 +143,7 @@ export const gameSessions = mysqlTable("gameSessions", {
   amountPaid: int("amountPaid").notNull(), // Amount paid in cents
   status: mysqlEnum("status", ["active", "won", "lost", "expired"]).default("active").notNull(),
   prizeCode: varchar("prizeCode", { length: 64 }), // Generated when wins = 5
+  preGeneratedResults: text("preGeneratedResults"), // JSON array of pre-generated results: [{"tree": true/false, "leaf": true/false}]
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
