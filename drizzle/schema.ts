@@ -128,3 +128,59 @@ export const orderItems = mysqlTable("orderItems", {
 
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
+
+/**
+ * Game sessions table - tracks user game attempts for products
+ */
+export const gameSessions = mysqlTable("gameSessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id),
+  productId: int("productId").notNull().references(() => products.id),
+  packageType: mysqlEnum("packageType", ["single", "triple"]).notNull(), // single = 1 attempt, triple = 4 attempts
+  totalAttempts: int("totalAttempts").notNull(), // 1 or 4
+  attemptsUsed: int("attemptsUsed").default(0).notNull(),
+  wins: int("wins").default(0).notNull(), // Count of wins (need 5 to win product)
+  amountPaid: int("amountPaid").notNull(), // Amount paid in cents
+  status: mysqlEnum("status", ["active", "won", "lost", "expired"]).default("active").notNull(),
+  prizeCode: varchar("prizeCode", { length: 64 }), // Generated when wins = 5
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type GameSession = typeof gameSessions.$inferSelect;
+export type InsertGameSession = typeof gameSessions.$inferInsert;
+
+/**
+ * Game results table - individual game plays within a session
+ */
+export const gameResults = mysqlTable("gameResults", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull().references(() => gameSessions.id),
+  userId: int("userId").notNull().references(() => users.id),
+  productId: int("productId").notNull().references(() => products.id),
+  choice: mysqlEnum("choice", ["tree", "leaf"]).notNull(), // User's choice
+  result: mysqlEnum("result", ["tree", "leaf"]).notNull(), // Actual result
+  isWin: tinyint("isWin").notNull(), // 1 if choice matches result
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GameResult = typeof gameResults.$inferSelect;
+export type InsertGameResult = typeof gameResults.$inferInsert;
+
+/**
+ * Prize codes table - redemption codes for winners
+ */
+export const prizeCodes = mysqlTable("prizeCodes", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 64 }).notNull().unique(),
+  sessionId: int("sessionId").notNull().references(() => gameSessions.id),
+  userId: int("userId").notNull().references(() => users.id),
+  productId: int("productId").notNull().references(() => products.id),
+  status: mysqlEnum("status", ["active", "redeemed", "expired"]).default("active").notNull(),
+  redeemedAt: timestamp("redeemedAt"),
+  expiresAt: timestamp("expiresAt"), // Optional expiration date
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PrizeCode = typeof prizeCodes.$inferSelect;
+export type InsertPrizeCode = typeof prizeCodes.$inferInsert;

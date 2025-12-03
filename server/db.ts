@@ -7,7 +7,10 @@ import {
   products, InsertProduct,
   cartItems, InsertCartItem,
   orders, InsertOrder,
-  orderItems, InsertOrderItem
+  orderItems, InsertOrderItem,
+  gameSessions, InsertGameSession,
+  gameResults, InsertGameResult,
+  prizeCodes, InsertPrizeCode
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -310,4 +313,226 @@ export async function getAllOrders() {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(orders).orderBy(desc(orders.createdAt));
+}
+
+// ============ GAME SYSTEM ============
+
+/**
+ * Generate a unique prize code
+ */
+function generatePrizeCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude confusing characters
+  let code = '';
+  for (let i = 0; i < 12; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+/**
+ * Create a new game session
+ */
+export async function createGameSession(session: InsertGameSession) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result: any = await db.insert(gameSessions).values(session);
+  return Number(result.insertId);
+}
+
+/**
+ * Get active game session for user and product
+ */
+export async function getActiveGameSession(userId: number, productId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(gameSessions)
+    .where(and(
+      eq(gameSessions.userId, userId),
+      eq(gameSessions.productId, productId),
+      eq(gameSessions.status, 'active')
+    ))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Get game session by ID
+ */
+export async function getGameSessionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(gameSessions).where(eq(gameSessions.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Update game session
+ */
+export async function updateGameSession(id: number, updates: Partial<InsertGameSession>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(gameSessions).set(updates).where(eq(gameSessions.id, id));
+}
+
+/**
+ * Play a game round
+ * Returns true if user won, false if lost
+ */
+export async function playGameRound(sessionId: number, userId: number, productId: number, choice: 'tree' | 'leaf'): Promise<{ isWin: boolean; result: 'tree' | 'leaf' }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Get session
+  const session = await getGameSessionById(sessionId);
+  if (!session) throw new Error("Game session not found");
+  if (session.status !== 'active') throw new Error("Game session is not active");
+  if (session.attemptsUsed >= session.totalAttempts) throw new Error("No attempts remaining");
+  
+  // Generate result with 45% win rate for user
+  const random = Math.random();
+  const isWin = random < 0.45;
+  const result: 'tree' | 'leaf' = isWin ? choice : (choice === 'tree' ? 'leaf' : 'tree');
+  
+  // Save game result
+  await db.insert(gameResults).values({
+    sessionId,
+    userId,
+    productId,
+    choice,
+    result,
+    isWin: isWin ? 1 : 0,
+  });
+  
+  // Update session
+  const newWins = isWin ? session.wins + 1 : session.wins;
+  const newAttemptsUsed = session.attemptsUsed + 1;
+  
+  let newStatus: 'active' | 'won' | 'lost' | 'expired' = session.status;
+  let prizeCode = session.prizeCode;
+  
+  // Check if user won the product (5 wins)
+  if (newWins >= 5) {
+    newStatus = 'won' as const;
+    prizeCode = generatePrizeCode();
+    
+    // Create prize code entry
+    await db.insert(prizeCodes).values({
+      code: prizeCode,
+      sessionId,
+      userId,
+      productId,
+      status: 'active',
+    });
+  } else if (newAttemptsUsed >= session.totalAttempts && newWins < 5) {
+    // Used all attempts but didn't win
+    newStatus = 'lost' as const;
+  }
+  
+  await updateGameSession(sessionId, {
+    wins: newWins,
+    attemptsUsed: newAttemptsUsed,
+    status: newStatus,
+    prizeCode,
+  });
+  
+  return { isWin, result };
+}
+
+/**
+ * Get game history for a user
+ */
+export async function getUserGameHistory(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const sessions = await db
+    .select({
+      session: gameSessions,
+      product: products,
+    })
+    .from(gameSessions)
+    .leftJoin(products, eq(gameSessions.productId, products.id))
+    .where(eq(gameSessions.userId, userId))
+    .orderBy(desc(gameSessions.createdAt));
+  
+  return sessions;
+}
+
+/**
+ * Get game results for a session
+ */
+export async function getSessionGameResults(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(gameResults)
+    .where(eq(gameResults.sessionId, sessionId))
+    .orderBy(desc(gameResults.createdAt));
+}
+
+/**
+ * Get prize code by code string
+ */
+export async function getPrizeCodeByCode(code: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db
+    .select({
+      prizeCode: prizeCodes,
+      product: products,
+      user: users,
+    })
+    .from(prizeCodes)
+    .leftJoin(products, eq(prizeCodes.productId, products.id))
+    .leftJoin(users, eq(prizeCodes.userId, users.id))
+    .where(eq(prizeCodes.code, code))
+    .limit(1);
+  
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Redeem a prize code
+ */
+export async function redeemPrizeCode(code: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const prizeData = await getPrizeCodeByCode(code);
+  if (!prizeData) throw new Error("Prize code not found");
+  if (prizeData.prizeCode.status !== 'active') throw new Error("Prize code already used or expired");
+  
+  await db.update(prizeCodes)
+    .set({ 
+      status: 'redeemed',
+      redeemedAt: new Date(),
+    })
+    .where(eq(prizeCodes.code, code));
+  
+  return prizeData;
+}
+
+/**
+ * Get all prize codes (admin)
+ */
+export async function getAllPrizeCodes() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db
+    .select({
+      prizeCode: prizeCodes,
+      product: products,
+      user: users,
+    })
+    .from(prizeCodes)
+    .leftJoin(products, eq(prizeCodes.productId, products.id))
+    .leftJoin(users, eq(prizeCodes.userId, users.id))
+    .orderBy(desc(prizeCodes.createdAt));
 }

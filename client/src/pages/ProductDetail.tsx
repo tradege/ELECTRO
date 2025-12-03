@@ -1,17 +1,22 @@
 import { useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, Plus, Minus, Store as StoreIcon } from "lucide-react";
+import { ShoppingBag, Plus, Minus, Store as StoreIcon, Gamepad2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
+import { GamePurchaseModal } from "@/components/GamePurchaseModal";
+import { TreeOrLeafGame } from "@/components/TreeOrLeafGame";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   const [quantity, setQuantity] = useState(1);
+  const [showGameModal, setShowGameModal] = useState(false);
+  const [showGame, setShowGame] = useState(false);
+  const [prizeCode, setPrizeCode] = useState<string | null>(null);
   
   const productId = Number(id);
   const { data: product, isLoading } = trpc.products.getById.useQuery({ id: productId });
@@ -19,6 +24,21 @@ export default function ProductDetail() {
     { id: product?.storeId || 0 },
     { enabled: !!product?.storeId }
   );
+  
+  const { data: activeSession, refetch: refetchSession } = trpc.game.getActiveSession.useQuery(
+    { productId },
+    { enabled: isAuthenticated && !!productId }
+  );
+  
+  const handleGamePurchaseSuccess = () => {
+    refetchSession();
+    setShowGame(true);
+  };
+  
+  const handleGameWin = (code: string) => {
+    setPrizeCode(code);
+    toast.success(`🎉 מזל טוב! קוד הפרס שלך: ${code}`);
+  };
   
   const utils = trpc.useUtils();
   const addToCart = trpc.cart.add.useMutation({
@@ -244,11 +264,81 @@ export default function ProductDetail() {
                     </>
                   )}
                 </Button>
+                
+                {/* Game Option */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-border"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">או</span>
+                  </div>
+                </div>
+                
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full text-base border-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      window.location.href = getLoginUrl();
+                      return;
+                    }
+                    if (activeSession) {
+                      setShowGame(true);
+                    } else {
+                      setShowGameModal(true);
+                    }
+                  }}
+                >
+                  <Gamepad2 className="mr-2 h-5 w-5" />
+                  {activeSession ? 'המשך משחק' : 'שחק לזכות'} - ₪{Math.floor(product.price * 0.1)}
+                </Button>
+                
+                <p className="text-xs text-center text-muted-foreground">
+                  💡 שחק במשחק "עץ או פלי" וזכה במוצר ב-10% מהמחיר!
+                </p>
               </div>
             </div>
           </div>
+          
+          {/* Game Section */}
+          {isAuthenticated && activeSession && showGame && (
+            <div className="mt-12">
+              <TreeOrLeafGame
+                productId={productId}
+                productName={product.name}
+                productPrice={product.price}
+                onWin={handleGameWin}
+              />
+            </div>
+          )}
+          
+          {/* Prize Code Display */}
+          {prizeCode && (
+            <div className="mt-8 p-6 bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-400 rounded-lg text-center">
+              <h3 className="text-2xl font-bold text-yellow-900 mb-2">🎉 מזל טוב! זכית!</h3>
+              <p className="text-yellow-800 mb-4">קוד הפרס שלך:</p>
+              <div className="bg-white p-4 rounded-lg inline-block">
+                <code className="text-3xl font-mono font-bold text-yellow-900">{prizeCode}</code>
+              </div>
+              <p className="text-sm text-yellow-800 mt-4">
+                שמור את הקוד הזה ופנה לאיסוף המוצר
+              </p>
+            </div>
+          )}
         </div>
       </section>
+      
+      {/* Game Purchase Modal */}
+      <GamePurchaseModal
+        open={showGameModal}
+        onOpenChange={setShowGameModal}
+        productId={productId}
+        productName={product.name}
+        productPrice={product.price}
+        onSuccess={handleGamePurchaseSuccess}
+      />
     </div>
   );
 }

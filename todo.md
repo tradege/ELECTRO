@@ -47,3 +47,18 @@
 - [ ] Test all user flows
 - [ ] Ensure responsive design on mobile and desktop
 - [ ] Performance optimization
+
+## Game System (Tree or Leaf)
+- [x] Create game_sessions table to track user game attempts
+- [x] Create game_results table to store individual game plays
+- [x] Create prize_codes table for winner redemption codes
+- [x] Add game pricing logic (10% of product price)
+- [x] Implement Tree or Leaf game logic with 45% win rate
+- [x] Build animated game interface with visual feedback
+- [x] Create payment packages (1 attempt vs 4 attempts)
+- [x] Add win counter system (need 5 wins to get product)
+- [x] Generate unique prize codes for winners
+- [x] Create prize code redemption system
+- [x] Add game history for users
+- [x] Update product pages with "Play to Win" option
+- [ ] Admin dashboard for game statistics and prize codes

@@ -258,6 +258,129 @@ export const appRouter = router({
       return await db.getAllOrders();
     }),
   }),
+
+  // ============ GAME SYSTEM ============
+  game: router({
+    // Start a new game session
+    startSession: protectedProcedure
+      .input(z.object({
+        productId: z.number(),
+        packageType: z.enum(['single', 'triple']), // single = 1 attempt, triple = 4 attempts
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Get product to calculate game price
+        const product = await db.getProductById(input.productId);
+        if (!product) throw new Error('Product not found');
+        
+        // Calculate game price (10% of product price)
+        const gamePrice = Math.floor(product.price * 0.1);
+        
+        // Determine attempts and total cost
+        const totalAttempts = input.packageType === 'single' ? 1 : 4;
+        const totalCost = input.packageType === 'single' ? gamePrice : gamePrice * 3; // 3x price for 4 attempts (bonus!)
+        
+        // Check if user already has an active session for this product
+        const existingSession = await db.getActiveGameSession(ctx.user.id, input.productId);
+        if (existingSession) {
+          return { sessionId: existingSession.id, existing: true };
+        }
+        
+        // Create new session
+        const sessionId = await db.createGameSession({
+          userId: ctx.user.id,
+          productId: input.productId,
+          packageType: input.packageType,
+          totalAttempts,
+          amountPaid: totalCost,
+          status: 'active',
+        });
+        
+        return { sessionId, existing: false, totalCost, totalAttempts };
+      }),
+    
+    // Get current active session for a product
+    getActiveSession: protectedProcedure
+      .input(z.object({ productId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const session = await db.getActiveGameSession(ctx.user.id, input.productId);
+        if (!session) return null;
+        
+        const results = await db.getSessionGameResults(session.id);
+        return { ...session, results };
+      }),
+    
+    // Play a game round
+    play: protectedProcedure
+      .input(z.object({
+        sessionId: z.number(),
+        choice: z.enum(['tree', 'leaf']),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const session = await db.getGameSessionById(input.sessionId);
+        if (!session) throw new Error('Game session not found');
+        if (session.userId !== ctx.user.id) throw new Error('Forbidden');
+        
+        const result = await db.playGameRound(
+          input.sessionId,
+          ctx.user.id,
+          session.productId,
+          input.choice
+        );
+        
+        // Get updated session
+        const updatedSession = await db.getGameSessionById(input.sessionId);
+        
+        return {
+          ...result,
+          choice: input.choice,
+          session: updatedSession,
+        };
+      }),
+    
+    // Get game history
+    history: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUserGameHistory(ctx.user.id);
+    }),
+    
+    // Get session details
+    getSession: protectedProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const session = await db.getGameSessionById(input.sessionId);
+        if (!session) return null;
+        if (session.userId !== ctx.user.id && ctx.user.role !== 'admin') {
+          throw new Error('Forbidden');
+        }
+        
+        const results = await db.getSessionGameResults(input.sessionId);
+        return { ...session, results };
+      }),
+  }),
+
+  // ============ PRIZE CODES ============
+  prizes: router({
+    // Check prize code
+    checkCode: publicProcedure
+      .input(z.object({ code: z.string() }))
+      .query(async ({ input }) => {
+        const prize = await db.getPrizeCodeByCode(input.code);
+        if (!prize) return null;
+        return prize;
+      }),
+    
+    // Redeem prize code
+    redeem: protectedProcedure
+      .input(z.object({ code: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const prize = await db.redeemPrizeCode(input.code);
+        return prize;
+      }),
+    
+    // Get all prize codes (admin)
+    listAll: adminProcedure.query(async () => {
+      return await db.getAllPrizeCodes();
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
