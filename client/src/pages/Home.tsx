@@ -98,7 +98,7 @@ export default function Home() {
       </section>
 
       {/* Game Showcase Section */}
-      <section className="py-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-y-4 border-green-500">
+      <section className="py-20 bg-white">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-6">
