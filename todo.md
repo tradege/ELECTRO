@@ -76,3 +76,10 @@
 - [x] Add visual feedback and animations
 - [x] Show "Play for Real" button after demo
 - [x] Distinguish between demo mode and paid mode
+
+## Game Design Improvements
+- [x] Redesign game with Nike-inspired styling (black/white/orange colors)
+- [x] Fix win rate display (currently shows 100% win, should be 45%)
+- [x] Add clear animation showing draw result (tree or leaf)
+- [x] Show clear "Won" or "Lost" message after each round
+- [x] Match game design to overall website aesthetic
