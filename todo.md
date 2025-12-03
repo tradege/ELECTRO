@@ -69,3 +69,10 @@
 - [x] Move game to homepage (visible to everyone)
 - [x] Update game logic to use pre-generated results
 - [x] Ensure each payment gets unique random sequence
+
+## Interactive Demo Game on Homepage
+- [x] Create demo game component that runs on homepage
+- [x] Allow everyone to play for free (no login required)
+- [x] Add visual feedback and animations
+- [x] Show "Play for Real" button after demo
+- [x] Distinguish between demo mode and paid mode
