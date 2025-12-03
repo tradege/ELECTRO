@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Store, TrendingUp, ArrowRight, Gamepad2, Trophy, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import DemoGame from "@/components/DemoGame";
 
 export default function Home() {
   const { data: products, isLoading: productsLoading } = trpc.products.list.useQuery({});
@@ -152,14 +153,11 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="text-center">
-            <Link href="/products">
-              <Button size="lg" className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-lg px-12 py-6">
-                <Gamepad2 className="mr-2 h-6 w-6" />
-                בחר מוצר והתחל לשחק!
-              </Button>
-            </Link>
-            <p className="text-sm text-gray-500 mt-4">
+          {/* Interactive Demo Game */}
+          <DemoGame />
+          
+          <div className="text-center mt-8">
+            <p className="text-sm text-gray-500">
               💡 כל מוצר באתר זמין למשחק - בחר מה שאתה רוצה!
             </p>
           </div>
